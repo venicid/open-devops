@@ -5,13 +5,14 @@ import (
 	"github.com/go-kit/log"
 	"github.com/go-kit/log/level"
 	"open-devops/src/common"
+	"sort"
 	"strings"
 )
 
 type StreePath struct {
-	Id int64 `json:"id"`
-	Level int64 `json:"level"`
-	Path string `json:"path"`
+	Id       int64  `json:"id"`
+	Level    int64  `json:"level"`
+	Path     string `json:"path"`
 	NodeName string `json:"node_name"`
 }
 
@@ -21,12 +22,10 @@ func (sp *StreePath) AddOne() (int64, error) {
 	return rowAffect, err
 }
 
-
-
 // 带部分条件查询一条记录函数
 func (sp *StreePath) GetOne() (*StreePath, error) {
 	exist, err := DB["stree"].Get(sp)
-	if err !=nil {
+	if err != nil {
 		return nil, err
 	}
 	if !exist {
@@ -35,22 +34,25 @@ func (sp *StreePath) GetOne() (*StreePath, error) {
 	return sp, nil
 }
 
-
 // 检查一个记录是否存在
 func (sp *StreePath) CheckExist() (bool, error) {
 	exist, err := DB["stree"].Exist(sp)
 	return exist, err
 }
 
-/*
-函数区域
-*/
+// 删除一条记录
+func (sp *StreePath) DelOne() (int64, error){
+	delNum, err := DB["stree"].Delete(sp)
+	return delNum, err
+}
 
+
+// 函数区域
 // 带参数查询一条记录函数 level=3 and path=/0
-func StreePathGet(where string, args ...interface{}) (*StreePath, error)  {
+func StreePathGet(where string, args ...interface{}) (*StreePath, error) {
 	var obj StreePath
 	has, err := DB["stree"].Where(where, args...).Get(&obj)
-	if err !=nil {
+	if err != nil {
 		return nil, err
 	}
 	if !has {
@@ -59,10 +61,159 @@ func StreePathGet(where string, args ...interface{}) (*StreePath, error)  {
 	return &obj, nil
 }
 
-func StreePathAddOne(req *common.NodeCommonReq, logger log.Logger)  {
+// 带参数查询多条记录函数
+func StreePathGetMany(where string, args ...interface{}) ([]StreePath, error) {
+	var objs []StreePath
+	err := DB["stree"].Where(where, args...).Find(&objs)
+	if err != nil {
+		return objs, err
+	}
+
+	return objs, nil
+}
+
+func StreePathQuery(req *common.NodeCommonReq, logger log.Logger) (res []string) {
+	switch req.QueryType {
+	case 1:
+		// 根据g, 查询所有p列表 node=g query_type=1
+		nodeG := &StreePath{
+			Level:    1,
+			Path:     "0",
+			NodeName: req.Node,
+		}
+		dbG, err := nodeG.GetOne()
+		if err != nil {
+			level.Error(logger).Log("msg", "check.g.failed", "path", req.Node, "err", err)
+			return
+		}
+		// 说明要查询的g不存在
+		if dbG == nil{
+			return
+		}
+		pathP := fmt.Sprintf("/%d", dbG.Id)
+		whereStr := "level=? and path=?"
+		ps, err := StreePathGetMany(whereStr, 2, pathP)
+		if err != nil {
+			level.Error(logger).Log("msg", "query_ps_failed", "path", req.Node, "err", err)
+			return
+		}
+		for _,i :=range ps{
+			res = append(res, i.NodeName)
+		}
+		sort.Strings(res)
+		return
+	case 2:
+		/*
+		编写query_type=2的查询，根据g查询，所有g.p.a的列表
+		先查g，再查p，最后查a，中间一步都没有返回空
+		*/
+		// 根据g, 查询所有p列表 node=g query_type=1
+		nodeG := &StreePath{
+			Level:    1,
+			Path:     "0",
+			NodeName: req.Node,
+		}
+		dbG, err := nodeG.GetOne()
+		if err != nil {
+			level.Error(logger).Log("msg", "check.g.failed", "path", req.Node, "err", err)
+			return
+		}
+		// 说明要查询的g不存在
+		if dbG == nil{
+			return
+		}
+		pathP := fmt.Sprintf("/%d", dbG.Id)
+		whereStr := "level=? and path=?"
+		ps, err := StreePathGetMany(whereStr, 2, pathP)
+		if err != nil {
+			level.Error(logger).Log("msg", "query_ps_failed", "path", req.Node, "err", err)
+			return
+		}
+
+		if len(ps) == 0{
+			// 说明p下没有a
+			return
+		}
+
+		for _, p := range ps {
+			pathA := fmt.Sprintf("%s/%d", p.Path, p.Id)
+			as, err := StreePathGetMany(whereStr, 3, pathA)
+			if err != nil{
+				level.Error(logger).Log("msg", "query_as_failed", "path", req.Node, "err", err)
+				continue
+			}
+			if len(as) == 0{
+				continue
+			}
+			for _, a := range as {
+				fullPath := fmt.Sprintf("%s.%s.%s", dbG.NodeName, p.NodeName, a.NodeName)
+				res = append(res, fullPath)
+			}
+		}
+		return
+	case 3:
+		/*
+			编写query_type=3的查询 根据g.p查询 所有g.p.a的列表 node=g.p query_type=3
+			先查询 g 和p，不存在直接返回空
+			查p时需要带上p.name查询
+		*/
+		gps := strings.Split(req.Node, ".")
+		g,p := gps[0], gps[1]
+		// 根据g, 查询所有p列表 node=g query_type=1
+		nodeG := &StreePath{
+			Level:    1,
+			Path:     "0",
+			NodeName: g,
+		}
+		dbG, err := nodeG.GetOne()
+		if err != nil {
+			level.Error(logger).Log("msg", "check.g.failed", "path", req.Node, "err", err)
+			return
+		}
+		// 说明要查询的g不存在
+		if dbG == nil{
+			return
+		}
+
+		// g存在，不需要查询全量的p，只查匹配这个node_name的p
+		pathP := fmt.Sprintf("/%d", dbG.Id)
+		whereStr := "level=? and path=? and node_name=?"
+		dbP, err := StreePathGet(whereStr, 2, pathP, p)
+		if err != nil {
+			level.Error(logger).Log("msg", "query_p_failed", "path", req.Node, "err", err)
+			return
+		}
+		if dbP == nil{
+			// 说明p不存在
+			return
+		}
+		pathA := fmt.Sprintf("%s/%d", pathP, dbP.Id)
+		whereStr  = "level=? and path=?"
+		as, err := StreePathGetMany(whereStr, 3, pathA)
+		if err != nil{
+			level.Error(logger).Log("msg", "query_as_failed", "path", req.Node, "err", err)
+			return
+		}
+
+		for _, a := range as {
+			fullPath := fmt.Sprintf("%s.%s.%s", dbG.NodeName, dbP.NodeName, a.NodeName)
+			res = append(res, fullPath)
+		}
+		sort.Strings(res)
+		return
+	}
+	return
+}
+
+/*
+Node操作
+*/
+
+
+func StreePathAddOne(req *common.NodeCommonReq, logger log.Logger) {
 	// 要求新增是三段式 g.p.a
 	res := strings.Split(req.Node, ".")
-	if len(res) != 3{
+	if len(res) != 3 {
 		level.Info(logger).Log("msg", "add.path.invalidate", "path", req.Node)
 		return
 	}
@@ -87,8 +238,8 @@ func StreePathAddOne(req *common.NodeCommonReq, logger log.Logger)  {
 		level.Info(logger).Log("msg", "g_not_exist", "path", req.Node)
 
 		// 插入g
-		_,err := nodeG.AddOne()
-		if err != nil{
+		_, err := nodeG.AddOne()
+		if err != nil {
 			level.Error(logger).Log("msg", "g_not_exist_add_g_failed", "path", req.Node, "err", err)
 			return
 		}
@@ -101,13 +252,12 @@ func StreePathAddOne(req *common.NodeCommonReq, logger log.Logger)  {
 			Path:     pathP,
 			NodeName: p,
 		}
-		_,err  = nodeP.AddOne()
-		if err != nil{
+		_, err = nodeP.AddOne()
+		if err != nil {
 			level.Error(logger).Log("msg", "g_not_exist_add_p_failed", "path", req.Node, "err", err)
 			return
 		}
 		level.Info(logger).Log("msg", "g_not_exist_add_p_success", "path", req.Node, "err", err)
-
 
 		// 插入a
 		pathA := fmt.Sprintf("%s/%d", pathP, nodeP.Id)
@@ -116,35 +266,278 @@ func StreePathAddOne(req *common.NodeCommonReq, logger log.Logger)  {
 			Path:     pathA,
 			NodeName: a,
 		}
-		_,err  = nodeA.AddOne()
-		if err != nil{
+		_, err = nodeA.AddOne()
+		if err != nil {
 			level.Error(logger).Log("msg", "g_not_exist_add_a_failed", "path", req.Node, "err", err)
 			return
 		}
 		level.Info(logger).Log("msg", "g_not_exist_add_a_success", "path", req.Node, "err", err)
 
-
 	default:
-		// 说明g存在，再查p
 		level.Info(logger).Log("msg", "g_exist", "path", req.Node)
 
-	}
+		// 1 - 说明g存在，再查p
+		pathP := fmt.Sprintf("/%d", dbG.Id)
+		nodeP := &StreePath{
+			Level:    2,
+			Path:     pathP,
+			NodeName: p,
+		}
+		dbP, err := nodeP.GetOne()
+		if err != nil {
+			level.Error(logger).Log("msg", "g_exist_check_p_failed", "path", req.Node, "err", err)
+			return
+		}
+		level.Info(logger).Log("msg", "g_exist_check_p_success", "path", req.Node, "err", err)
 
+		// 1.1 - 说明p存在，继续查a
+		if dbP != nil {
+			pathA := fmt.Sprintf("%s/%d", pathP, dbP.Id)
+			nodeA := &StreePath{
+				Level:    3,
+				Path:     pathA,
+				NodeName: a,
+			}
+			dbA, err := nodeA.GetOne()
+			if err != nil {
+				level.Error(logger).Log("msg", "g_p_exist_check_a_failed", "path", req.Node, "err", err)
+				return
+			}
+			level.Info(logger).Log("msg", "g_p_exist_check_a_success", "path", req.Node)
+
+			// 1.1.1 - 说明a，不存在，插入a
+			if dbA == nil {
+				_, err := nodeA.AddOne()
+				if err != nil {
+					level.Error(logger).Log("msg", "g_p_exist_add_a_failed", "path", req.Node, "err", err)
+					return
+				}
+				level.Info(logger).Log("msg", "g_p_exist_add_a_success", "path", req.Node, "err", err)
+				return
+			}
+			level.Info(logger).Log("msg", "g_p_a_exist", "path", req.Node)
+			return
+		}
+
+		// 1.2 - p不存在，插入p和a
+		level.Info(logger).Log("msg", "g_exist_p_a_not", "path", req.Node)
+		_,err = nodeP.AddOne()
+		if err != nil{
+			level.Error(logger).Log("msg", "g_exist_add_p_failed", "path", req.Node, "err", err)
+			return
+		}
+		level.Info(logger).Log("msg", "g_exist_add_p_success", "path", req.Node)
+
+		// 1.2.1 - 插入a
+		pathA := fmt.Sprintf("%s/%d", pathP, nodeP.Id)
+		nodeA := &StreePath{
+			Level:    3,
+			Path:     pathA,
+			NodeName: a,
+		}
+		_, err = nodeA.AddOne()
+		if err != nil{
+			level.Error(logger).Log("msg", "g_exist_add_a_failed", "path", req.Node, "err", err)
+			return
+		}
+		level.Info(logger).Log("msg", "g_exist_add_a_success", "path", req.Node)
+	}
 
 }
 
+func StreePathDelete(req *common.NodeCommonReq, logger log.Logger) (delNum int64){
+	path := strings.Split(req.Node, ".")
+	pLevel := len(path)
+
+	//	  传入g，如果g下有p就不让删g
+	nodeG := &StreePath{
+		Level:    1,
+		Path:     "0",
+		NodeName: path[0],
+	}
+	dbG, err := nodeG.GetOne()
+	if err != nil {
+		level.Error(logger).Log("msg", "query_g_failed", "path", req.Node, "err", err)
+		return
+	}
+	if dbG == nil {
+		// 说明要删除的g不存在
+		return
+	}
+	pathP := fmt.Sprintf("/%d", dbG.Id)
+
+	switch pLevel {
+	case 1:
+		//	  传入g，如果g下有p就不让删g
+		nodeG := &StreePath{
+			Level:    1,
+			Path:     "0",
+			NodeName: path[0],
+		}
+		dbG, err := nodeG.GetOne()
+		if err != nil {
+			level.Error(logger).Log("msg", "query_g_failed", "path", req.Node, "err", err)
+			return
+		}
+		if dbG == nil {
+			// 说明要删除的g不存在
+			return
+		}
+
+		// 查询p，p存在，不让删除
+		whereStr := "level=? and path=?"
+		ps, err := StreePathGetMany(whereStr, 2, pathP)
+		if err != nil {
+			level.Error(logger).Log("msg", "query_ps_failed", "path", req.Node, "err", err)
+			return
+		}
+		if len(ps) > 0{
+			level.Warn(logger).Log("msg", "del_g_reject", "path", req.Node, "reason", "g_has_ps", "ps_num", len(ps))
+			return
+		}
+		// 删除g
+		delNum, err = dbG.DelOne()
+		if err != nil {
+			level.Error(logger).Log("msg", "del_g_failed", "path", req.Node, "err", err)
+			return
+		}
+		level.Info(logger).Log("msg", "del_g_success", "path", req.Node)
+		return
+
+	case 2:
+		// 传入g.p，如果p下有a就不让删除p
+		nodeP := &StreePath{
+			Level:    2,
+			Path:     pathP,
+			NodeName: path[1],
+		}
+		dbP, err := nodeP.GetOne()
+		if err != nil{
+			level.Error(logger).Log("msg", "query_p_failed", "path", req.Node, "err", err)
+			return
+		}
+		if dbP == nil{
+			// 说明p不存在
+			return
+		}
+		//pathA :=fmt.Sprintf("%s/%d", dbP.Path, dbP.Id)
+
+
+
+
+
+	case 3:
+		return
+
+	}
+	return
+}
+
+
+/*
+函数区域
+*/
 
 // 编写新增node的测试函数
-func StreePathAddTest(logger log.Logger)  {
+func StreePathAddTest(logger log.Logger) {
 	ns := []string{
 		"inf.monitor.thanos",
 		"inf.monitor.kafka",
+		"inf.monitor.prometheus",
+		"inf.monitor.m3db",
+		"inf.cicd.gray",
+		"inf.cicd.deploy",
+		"inf.cicd.jenkins",
 		"waimai.qiangdan.queue",
+		"waimai.qiangdan.worker",
+		"waimai.ditu.kafka",
+		"waimai.ditu.es",
 	}
-	for _, n := range ns{
+	for _, n := range ns {
 		req := &common.NodeCommonReq{
 			Node: n,
 		}
 		StreePathAddOne(req, logger)
+	}
+}
+
+// 编写查询node的测试函数
+func StreePathQueryTest1(logger log.Logger) {
+	ns := []string{
+		"inf",
+		"waimai",
+		"a",
+		"b",
+		"c",
+	}
+	for _, n := range ns {
+		req := &common.NodeCommonReq{
+			Node: n,
+			QueryType: 1,
+		}
+		res:= StreePathQuery(req, logger)
+		level.Info(logger).Log("msg", "StreePathQuery.res","req.node", n, "num", len(res), "details", strings.Join(res, ","))
+	}
+}
+
+// queryType = 2 查询
+func StreePathQueryTest2(logger log.Logger) {
+	ns := []string{
+		"inf",
+		"waimai",
+		"a",
+		"b",
+		"c",
+	}
+	for _, n := range ns {
+		req := &common.NodeCommonReq{
+			Node: n,
+			QueryType: 2,
+		}
+		res:= StreePathQuery(req, logger)
+		level.Info(logger).Log("msg", "StreePathQuery.res","req.node", n, "num", len(res), "details", strings.Join(res, ","))
+	}
+}
+
+// queryType = 3 查询
+func StreePathQueryTest3(logger log.Logger) {
+	ns := []string{
+		"a.b",
+		"b.a",
+		"c.d",
+		"inf.cicd",
+		"inf.monitor",
+		"waimai.ditu",
+		"waimai.monitor",
+		"waimai.qiangdan",
+	}
+	for _, n := range ns {
+		req := &common.NodeCommonReq{
+			Node: n,
+			QueryType: 3,
+		}
+		res:= StreePathQuery(req, logger)
+		level.Info(logger).Log("msg", "StreePathQuery.res","req.node", n, "num", len(res), "details", strings.Join(res, ","))
+	}
+}
+
+// 编写删除node的测试函数
+func StreePathDeleteTest(logger log.Logger) {
+	ns := []string{
+		"a.b",
+		"b.a",
+		"c.d",
+		"inf.cicd.jenkins",
+		"inf.cicd",
+		"inf",
+		"waimai",
+	}
+	for _, n := range ns {
+		req := &common.NodeCommonReq{
+			Node: n,
+			QueryType: 3,
+		}
+		res:= StreePathDelete(req, logger)
+		level.Info(logger).Log("msg", "StreePathDelete.res", "req.node", n, "del_num", res)
 	}
 }

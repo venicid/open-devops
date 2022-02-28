@@ -8,6 +8,7 @@ import (
 )
 
 
+// 设置DB: 数据库管理器engine
 var DB = map[string]*xorm.Engine{}
 
 func InitMysql(mysqlS []*config.MySQLConf)  {

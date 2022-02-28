@@ -92,7 +92,15 @@ func main() {
 	models.InitMysql(sConfig.MysqlS)
 	level.Info(logger).Log("msg", "load.mysql.success", "db.num",  len(models.DB))
 
-	models.StreePathAddTest(logger)
+
+	/*
+	测试函数
+	*/
+	//models.StreePathAddTest(logger)
+	//models.StreePathQueryTest1(logger)
+	//models.StreePathQueryTest2(logger)
+	//models.StreePathQueryTest3(logger)
+	models.StreePathDeleteTest(logger)
 
 }
 
