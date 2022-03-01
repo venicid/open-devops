@@ -349,7 +349,7 @@ func StreePathDelete(req *common.NodeCommonReq, logger log.Logger) (delNum int64
 	path := strings.Split(req.Node, ".")
 	pLevel := len(path)
 
-	//	  传入g，如果g下有p就不让删g
+	// 每次都要先校验g是否存在
 	nodeG := &StreePath{
 		Level:    1,
 		Path:     "0",
@@ -361,41 +361,28 @@ func StreePathDelete(req *common.NodeCommonReq, logger log.Logger) (delNum int64
 		return
 	}
 	if dbG == nil {
-		// 说明要删除的g不存在
 		return
 	}
 	pathP := fmt.Sprintf("/%d", dbG.Id)
 
 	switch pLevel {
-	case 1:
-		//	  传入g，如果g下有p就不让删g
-		nodeG := &StreePath{
-			Level:    1,
-			Path:     "0",
-			NodeName: path[0],
-		}
-		dbG, err := nodeG.GetOne()
-		if err != nil {
-			level.Error(logger).Log("msg", "query_g_failed", "path", req.Node, "err", err)
-			return
-		}
-		if dbG == nil {
-			// 说明要删除的g不存在
-			return
-		}
 
-		// 查询p，p存在，不让删除
+	// 传入g，如果g下有p就不让删g
+	case 1:
+		// 查询p，
 		whereStr := "level=? and path=?"
 		ps, err := StreePathGetMany(whereStr, 2, pathP)
 		if err != nil {
 			level.Error(logger).Log("msg", "query_ps_failed", "path", req.Node, "err", err)
 			return
 		}
+
+		// if p存在，不让删除
 		if len(ps) > 0{
 			level.Warn(logger).Log("msg", "del_g_reject", "path", req.Node, "reason", "g_has_ps", "ps_num", len(ps))
 			return
 		}
-		// 删除g
+		// else 删除g
 		delNum, err = dbG.DelOne()
 		if err != nil {
 			level.Error(logger).Log("msg", "del_g_failed", "path", req.Node, "err", err)
@@ -404,8 +391,9 @@ func StreePathDelete(req *common.NodeCommonReq, logger log.Logger) (delNum int64
 		level.Info(logger).Log("msg", "del_g_success", "path", req.Node)
 		return
 
+	// 传入g.p，如果p下有a就不让删除p
 	case 2:
-		// 传入g.p，如果p下有a就不让删除p
+		// 查询p是否存在
 		nodeP := &StreePath{
 			Level:    2,
 			Path:     pathP,
@@ -417,16 +405,68 @@ func StreePathDelete(req *common.NodeCommonReq, logger log.Logger) (delNum int64
 			return
 		}
 		if dbP == nil{
-			// 说明p不存在
 			return
 		}
-		//pathA :=fmt.Sprintf("%s/%d", dbP.Path, dbP.Id)
 
+		// 查询p下的a
+		pathA :=fmt.Sprintf("%s/%d", dbP.Path, dbP.Id)
+		whereStr := "level=? and path=?"
+		as, err := StreePathGetMany(whereStr, 3, pathA)
+		if err != nil {
+			level.Error(logger).Log("msg", "query_as_failed", "path", req.Node, "err", err)
+			return
+		}
 
+		// if g.p下存在很多a，拒绝删除
+		if len(as) > 0{
+			level.Warn(logger).Log("msg", "del_g_p_reject", "path", req.Node, "reason", "p_has_a", "as_num", len(as))
+			return
+		}
+		// else 删除p成功
+		delNum, err = dbP.DelOne()
+		if err != nil{
+			level.Error(logger).Log("msg", "del_p_failed", "path", req.Node, "err", err)
+			return
+		}
+		level.Info(logger).Log("msg", "del_p_success", "path", req.Node)
+		return
 
-
-
+	// 传入g.p.a删除
 	case 3:
+		// 查询p是否存在
+		nodeP := &StreePath{
+			Level:    2,
+			Path:     pathP,
+			NodeName: path[1],
+		}
+		dbP, err := nodeP.GetOne()
+		if err != nil{
+			level.Error(logger).Log("msg", "query_p_failed", "path", req.Node, "err", err)
+			return
+		}
+		if dbP == nil{
+			return
+		}
+
+		// 查询a是否存在
+		pathA :=fmt.Sprintf("%s/%d", dbP.Path, dbP.Id)
+		whereStr := "level=? and path=? and node_name=?"
+		dbA, err := StreePathGet(whereStr, 3, pathA, path[2])
+		if err != nil {
+			level.Error(logger).Log("msg", "query_a_failed", "path", req.Node, "err", err)
+			return
+		}
+		if dbA == nil{
+			return
+		}
+
+		// 删除a
+		delNum, err = dbA.DelOne()
+		if err != nil{
+			level.Error(logger).Log("msg", "del_a_failed", "path", req.Node, "err", err)
+			return
+		}
+		level.Info(logger).Log("msg", "del_a_success", "path", req.Node)
 		return
 
 	}
@@ -505,11 +545,9 @@ func StreePathQueryTest3(logger log.Logger) {
 		"a.b",
 		"b.a",
 		"c.d",
+		"inf",
 		"inf.cicd",
-		"inf.monitor",
-		"waimai.ditu",
-		"waimai.monitor",
-		"waimai.qiangdan",
+		"inf.cicd.jenkins",
 	}
 	for _, n := range ns {
 		req := &common.NodeCommonReq{
