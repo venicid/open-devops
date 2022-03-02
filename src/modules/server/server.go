@@ -100,7 +100,8 @@ func main() {
 	//models.StreePathQueryTest1(logger)
 	//models.StreePathQueryTest2(logger)
 	//models.StreePathQueryTest3(logger)
-	models.StreePathDeleteTest(logger)
+	//models.StreePathDeleteTest(logger)
+	models.StreePathForeceDeleteTest(logger)
 
 }
 

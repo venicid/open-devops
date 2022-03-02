@@ -72,6 +72,18 @@ func StreePathGetMany(where string, args ...interface{}) ([]StreePath, error) {
 	return objs, nil
 }
 
+// 带参数删除多条记录函数
+func StreePathDelMany(where string) (int64, error)  {
+	rawSql := fmt.Sprintf(`delete from stree_path where %s`, where)
+	res, err := DB["stree"].Exec(rawSql)
+	if err != nil{
+		return 0, err
+	}
+	rowsAffected, err := res.RowsAffected()
+	return rowsAffected, err
+
+}
+
 func StreePathQuery(req *common.NodeCommonReq, logger log.Logger) (res []string) {
 	switch req.QueryType {
 	case 1:
@@ -369,6 +381,37 @@ func StreePathDelete(req *common.NodeCommonReq, logger log.Logger) (delNum int64
 
 	// 传入g，如果g下有p就不让删g
 	case 1:
+
+		// 通过sql，强制删除g下的所有p和a
+		if req.ForceDelete{
+			delAWhereStr := fmt.Sprintf("path like '/%d/%%' and level = 3 ", dbG.Id)
+			delANum, err := StreePathDelMany(delAWhereStr)
+			if err != nil{
+				level.Error(logger).Log("msg", "delete_pa_failed", "path", req.Node, "err", err)
+				return
+			}
+			level.Info(logger).Log("msg", "delete_pa_success", "path", req.Node, "num", delNum, "del_where", delAWhereStr)
+			delNum += delANum
+
+			delPWhereStr := fmt.Sprintf("path like '/%d' and level = 2 ", dbG.Id)
+			delPNum, err := StreePathDelMany(delPWhereStr)
+			if err != nil{
+				level.Error(logger).Log("msg", "delete_pa_failed", "path", req.Node, "err", err)
+				return
+			}
+			level.Info(logger).Log("msg", "delete_pa_success", "path", req.Node, "num", delNum, "del_where", delPWhereStr)
+			delNum += delPNum
+
+			_, err = dbG.DelOne()
+			if err != nil{
+				level.Error(logger).Log("msg", "delete_g_failed", "path", req.Node, "err", err)
+				return
+			}
+			level.Info(logger).Log("msg", "delete_g_success", "path", req.Node)
+			delNum += 1
+			return
+		}
+
 		// 查询p，
 		whereStr := "level=? and path=?"
 		ps, err := StreePathGetMany(whereStr, 2, pathP)
@@ -574,6 +617,23 @@ func StreePathDeleteTest(logger log.Logger) {
 		req := &common.NodeCommonReq{
 			Node: n,
 			QueryType: 3,
+		}
+		res:= StreePathDelete(req, logger)
+		level.Info(logger).Log("msg", "StreePathDelete.res", "req.node", n, "del_num", res)
+	}
+}
+
+// 编写强制删除node的测试函数
+func StreePathForeceDeleteTest(logger log.Logger)  {
+	ns := []string{
+		"a.b",
+		"waimai",
+		"inf",
+	}
+	for _, n := range ns {
+		req := &common.NodeCommonReq{
+			Node: n,
+			ForceDelete: true,
 		}
 		res:= StreePathDelete(req, logger)
 		level.Info(logger).Log("msg", "StreePathDelete.res", "req.node", n, "del_num", res)
