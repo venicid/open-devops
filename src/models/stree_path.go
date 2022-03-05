@@ -84,6 +84,7 @@ func StreePathDelMany(where string) (int64, error)  {
 
 }
 
+// 查询数据的主函数
 func StreePathQuery(req *common.NodeCommonReq, logger log.Logger) (res []string) {
 	switch req.QueryType {
 	case 1:
@@ -358,7 +359,7 @@ func StreePathAddOne(req *common.NodeCommonReq, logger log.Logger) {
 }
 
 func StreePathDelete(req *common.NodeCommonReq, logger log.Logger) (delNum int64){
-	path := strings.Split(req.Node, ".")
+	path := strings.Split(req.Node, ".") // inf.cicd
 	pLevel := len(path)
 
 	// 每次都要先校验g是否存在
@@ -436,6 +437,46 @@ func StreePathDelete(req *common.NodeCommonReq, logger log.Logger) (delNum int64
 
 	// 传入g.p，如果p下有a就不让删除p
 	case 2:
+		// 强制删除p下的a,和p
+		// inf.cicd
+		if req.ForceDelete{
+			// 查询p是否存在
+			nodeP := &StreePath{
+				Level:    2,
+				Path:     pathP,  //  /90
+				NodeName: path[1], // cicd
+			}
+			dbP, err := nodeP.GetOne()
+			if err != nil{
+				level.Error(logger).Log("msg", "query_p_failed", "path", req.Node, "err", err)
+				return
+			}
+			if dbP == nil{
+				return
+			}
+
+			// 删除p下的所有a
+			delAWhereStr := fmt.Sprintf("path = '%v/%d' and level = 3 ", dbP.Path, dbP.Id )
+			delANum, err := StreePathDelMany(delAWhereStr)
+			if err != nil{
+				level.Error(logger).Log("msg", "delete_a_failed", "path", req.Node, "err", err)
+				return
+			}
+			level.Info(logger).Log("msg", "delete_a_success", "path", req.Node, "num", delANum, "del_where", delAWhereStr)
+			delNum += delANum
+
+			// 删除p
+			delPNum, err := dbP.DelOne()
+			if err != nil{
+				level.Error(logger).Log("msg", "del_p_failed", "path", req.Node, "err", err)
+				return
+			}
+			level.Info(logger).Log("msg", "del_p_success", "path", req.Node)
+			delNum += delPNum
+
+			return
+		}
+
 		// 查询p是否存在
 		nodeP := &StreePath{
 			Level:    2,
@@ -450,6 +491,8 @@ func StreePathDelete(req *common.NodeCommonReq, logger log.Logger) (delNum int64
 		if dbP == nil{
 			return
 		}
+
+
 
 		// 查询p下的a
 		pathA :=fmt.Sprintf("%s/%d", dbP.Path, dbP.Id)
@@ -627,8 +670,11 @@ func StreePathDeleteTest(logger log.Logger) {
 func StreePathForeceDeleteTest(logger log.Logger)  {
 	ns := []string{
 		"a.b",
-		"waimai",
-		"inf",
+		//"waimai",
+		//"inf",
+		//"inf.cicd",
+		//"inf.monitor",
+		"waimai.ditu",
 	}
 	for _, n := range ns {
 		req := &common.NodeCommonReq{
