@@ -4,3 +4,5 @@ mysql_s:
     max: 128
     idel: 16
     debug: false
+
+rpc_addr: :8081

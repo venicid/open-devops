@@ -3,18 +3,23 @@ package main
 
 // 使用prometheus log 和version注入
 import (
+	"context"
 	"fmt"
 	"github.com/go-kit/log"
 	"github.com/go-kit/log/level"
 	_ "github.com/go-sql-driver/mysql"
+	"github.com/oklog/run"
 	"github.com/prometheus/common/promlog"
 	promlogflag "github.com/prometheus/common/promlog/flag"
 	"github.com/prometheus/common/version"
 	"gopkg.in/alecthomas/kingpin.v2"
 	"open-devops/src/models"
 	"open-devops/src/modules/server/config"
+	"open-devops/src/modules/server/rpc"
 	"os"
+	"os/signal"
 	"path/filepath"
+	"syscall"
 	"time"
 )
 
@@ -101,7 +106,114 @@ func main() {
 	//models.StreePathQueryTest2(logger)
 	//models.StreePathQueryTest3(logger)
 	//models.StreePathDeleteTest(logger)
-	models.StreePathForeceDeleteTest(logger)
+	//models.StreePathForeceDeleteTest(logger)
+
+	/**
+	编排开始
+	 */
+	var g run.Group
+	ctxAll, cancelAll := context.WithCancel(context.Background())
+	fmt.Println(ctxAll)
+	{
+		// 处理信号退出的handler
+		term := make(chan os.Signal, 1)
+		signal.Notify(term, os.Interrupt, syscall.SIGTERM)   // 处理ctrl+c , kill -15
+
+		cancelC := make(chan struct{})
+		g.Add(
+			func() error {
+				select {
+				case <- term:
+					level.Warn(logger).Log("msg", "Receive SIGTERM, exiting gracefully...")
+					cancelAll()
+					return nil
+				case <- cancelC:
+					level.Warn(logger).Log("msg", "other cancel exiting")
+					return nil
+				}
+			},
+
+			func(err error) {
+				close(cancelC)
+			},
+
+			)
+	}
+	{
+		g.Add(
+			func() error {
+				for{
+					ticker := time.NewTicker(5*time.Second)
+					select {
+					case <- ctxAll.Done():
+						level.Warn(logger).Log("msg", "我是模块01退出，接收到了cancelAll")
+						return nil
+					case <- ticker.C:
+						level.Warn(logger).Log("msg", "我是模块01")
+
+					}
+				}
+
+			},
+
+			func(err error) {
+
+			},
+		)
+	}
+
+	{
+		// rpc server
+		g.Add(
+			func() error {
+				errChan := make(chan error, 1)
+				go func() {
+					errChan <- rpc.Start(sConfig.RpcAddr, logger)
+					//errChan <- rpc.Start(":8080", logger)
+					//errChan <- rpc.Start(":a8080", logger)  // 测试rpc server error
+				}()
+				select {
+				case err := <- errChan:
+					level.Error(logger).Log("msg", "rpc server error", "err", err)
+					return err
+
+				// 若注释掉，点击stop，进程不响应Done, 未退出
+				case <- ctxAll.Done():
+					level.Info(logger).Log("msg", "receive_quit_signal_rpc_server_exit")
+					return nil
+				}
+			},
+			func(err error) {
+				cancelAll()
+			})
+	}
+
+	g.Run()
+
+/*
+测试：
+	启动...
+   context.Background.WithCancel
+
+	退出信号...
+   level=warn ts=2022-03-05T11:30:28.343+08:00 caller=server.go:126 msg="Receive SIGTERM, exiting gracefully..."
+*/
+
+/*
+测试：
+	启动...
+   level=info ts=2022-03-05T11:59:10.755+08:00 caller=server.go:97 msg=load.mysql.success db.num=1
+   context.Background.WithCancel
+
+	level=warn ts=2022-03-05T11:59:15.756+08:00 caller=server.go:151 msg=我是模块01
+   level=warn ts=2022-03-05T11:59:20.761+08:00 caller=server.go:151 msg=我是模块01
+
+	退出信号...
+   level=warn ts=2022-03-05T11:59:23.592+08:00 caller=server.go:126 msg="Receive SIGTERM, exiting gracefully..."
+   level=warn ts=2022-03-05T11:59:23.592+08:00 caller=server.go:148 msg=我是模块01退出，接收到了cancelAll
+
+
+*/
 
 }
 
