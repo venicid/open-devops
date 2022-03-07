@@ -13,6 +13,7 @@ import (
 	"github.com/prometheus/common/version"
 	"gopkg.in/alecthomas/kingpin.v2"
 	"open-devops/src/modules/agent/config"
+	"open-devops/src/modules/agent/info"
 	"open-devops/src/modules/agent/rpc"
 	"os"
 	"os/signal"
@@ -121,6 +122,22 @@ func main() {
 		)
 	}
 
+	{
+		g.Add(
+			func() error {
+				err := info.TickerInfoCollectAndReport(ctxAll, logger)
+				if err != nil{
+					level.Error(logger).Log("msg", "TickerInfoCollectAndReport.error", "err", err)
+					return err
+				}
+				return err
+		},
+			func(err error) {
+				cancelAll()
+			},
+		)
+	}
+
 	g.Run()
 
 
@@ -146,4 +163,17 @@ level=info ts=2022-03-06T10:19:37.161+08:00 caller=ping.go:19 msg=Server.Ping.su
 context.Background.WithCancel
 level=warn ts=2022-03-06T10:19:41.802+08:00 caller=agent.go:108 msg="Receive SIGTERM, exiting gracefully..."
 
+*/
+
+
+/*
+
+linux下使用
+
+打包上传到linux服务器，解压
+# 编译
+go build -o agent src/modules/agent.go
+
+# 执行
+./agent
 */
