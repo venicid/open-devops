@@ -108,6 +108,10 @@ func main() {
 	//models.StreePathDeleteTest(logger)
 	//models.StreePathForeceDeleteTest(logger)
 
+	// 测试server资源
+	models.AddResourceHostTest()
+
+
 	/**
 	编排开始
 	 */

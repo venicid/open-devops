@@ -5,6 +5,7 @@ import (
 	"context"
 	"log"
 	"net"
+	"os"
 	"os/exec"
 	"strings"
 	"time"
@@ -22,6 +23,10 @@ func GetLocalIp()  string{
 	return localIp
 }
 
+func GetHostName() string {
+	name, _ := os.Hostname()
+	return name
+}
 
 func ShellCommand(shellStr string) (string,error){
 	// 3秒超时的ctx

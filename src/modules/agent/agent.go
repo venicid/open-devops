@@ -88,7 +88,7 @@ func main() {
 
 	// 初始化rpc client
 	rpcCli := rpc.InitRpcCli(sConfig.RpcServerAddr, logger)
-	rpcCli.Ping()
+	//rpcCli.Ping()
 
 	/**
 	编排开始
@@ -125,7 +125,7 @@ func main() {
 	{
 		g.Add(
 			func() error {
-				err := info.TickerInfoCollectAndReport(ctxAll, logger)
+				err := info.TickerInfoCollectAndReport(rpcCli, ctxAll, logger)
 				if err != nil{
 					level.Error(logger).Log("msg", "TickerInfoCollectAndReport.error", "err", err)
 					return err
