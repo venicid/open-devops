@@ -9,6 +9,7 @@ import (
 type Config struct {
 	MysqlS []*MySQLConf `yaml:"mysql_s"`
 	RpcAddr string `yaml:"rpc_addr"`
+	HttpAddr string `yaml:"http_addr"`
 }
 
 // 定义mysql单一库

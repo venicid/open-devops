@@ -52,9 +52,13 @@ func (r *RpcCli) GetCli() error  {
 	client := rpc.NewClientWithCodec(rpcCodec)
 	r.Cli = gobrpc.NewRPCClient(r.ServerAddr, client, 5*time.Second)
 	return nil
+}
 
-
-
-
+// rpc server关闭，agent 继续会上报
+func (r *RpcCli) CloseCli()  {
+	if r.Cli != nil {
+		r.Cli.Close()
+		r.Cli = nil
+	}
 
 }

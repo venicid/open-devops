@@ -4,6 +4,7 @@ go 1.16
 
 require (
 	github.com/alecthomas/units v0.0.0-20211218093645-b94a6e3cc137 // indirect
+	github.com/gin-gonic/gin v1.7.4
 	github.com/go-kit/log v0.1.0
 	github.com/go-sql-driver/mysql v1.6.0
 	github.com/oklog/run v1.0.0

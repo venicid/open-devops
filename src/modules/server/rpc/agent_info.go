@@ -20,7 +20,7 @@ func (r *Server) HostInfoReport(input models.AgentCollectInfo, output *string)  
 		*output = "sn.empty"
 		return nil
 	}
-	
+
 	// 先获取对象的uid
 	rh := models.ResourceHost{
 		Uid:               input.SN,
@@ -37,16 +37,19 @@ func (r *Server) HostInfoReport(input models.AgentCollectInfo, output *string)  
 	rhUid := models.ResourceHost{Uid: input.SN}
 	rhUidDb, err := rhUid.GetOne()
 	if err != nil{
-		*output = "db_error"
-		return nil
+		*output = fmt.Sprintf("db_getone_err_%v", err)
+		return err
 	}
+
 
 	if rhUidDb == nil{
 		// 说明指定uid不存在，插入
 		rh.Hash = hash
 		err = rh.AddOne()
+
 		if err != nil{
 			*output = fmt.Sprintf("db_err_%v", err)
+			return err
 		}else{
 			*output = "insert_success"
 		}
@@ -58,8 +61,8 @@ func (r *Server) HostInfoReport(input models.AgentCollectInfo, output *string)  
 		rh.Hash = hash
 		updated, err := rh.Update()
 		if err!= nil{
-			*output = "update_error"
-			return nil
+			*output = fmt.Sprintf("update_error_%v", err)
+			return err
 		}
 		if updated{
 			*output = "update_success"
@@ -68,6 +71,7 @@ func (r *Server) HostInfoReport(input models.AgentCollectInfo, output *string)  
 	}
 
 	// uid存在且hash值相等，什么都不需要做
+	log.Printf("[host.info.same][input:%+v]", input)
 
 	return nil
 }

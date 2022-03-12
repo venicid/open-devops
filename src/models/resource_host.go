@@ -37,7 +37,7 @@ type ResourceHost struct {
 	Status         string `json:"status"`
 	InstanceType   string `json:"instance_type"`
 	PublicIps json.RawMessage `json:"public_ips"`
-	AvailablilityZone string `json:"availablility_zone"`
+	AvailabilityZone string `json:"availability_zone"`
 
 	// 机器采集到的字段
 	SN       string `json:"sn" xorm:"-"`

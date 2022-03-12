@@ -44,9 +44,15 @@ func CollectBaseInfo(cli *rpc.RpcCli , logger log.Logger)  {
 	snShellCloud := `curl -s http://169.254.169.254/a/meta-data/instance-id`
 
 	// linux下使用
-	snShellHost := `dmidecode -s system-serial-number | tail -n 1 |tr -d "\n"`
-	cpuShell := `cat /proc/cpuinfo |grep processor |wc -l |tr -d "\n"`
-	memShell := `cat /proc/meminfo | grep MemTotal | awk '{printf "%d", $2/1024/1024}'`
+
+	//snShellHost := `dmidecode -s system-serial-number | tail -n 1 |tr -d "\n"`
+	//cpuShell := `cat /proc/cpuinfo |grep processor |wc -l |tr -d "\n"`
+	//memShell := `cat /proc/meminfo | grep MemTotal | awk '{printf "%d", $2/1024/1024}'`
+
+	cpuShell := `sysctl hw.physicalcpu | awk -F: '{printf $2}'`  // mac
+	memShell := `sysctl hw.physicalcpu | awk -F: '{printf $2}'`  // mac
+	snShellHost := `hostname |tr -d "\n"`
+
 	diskShell := `df -m |grep '/dev/' | grep -v '/var/lib' |grep -v tmpfs |awk '{sum += $2};END{printf "%d", sum/1024}'`
 
 	sn ,err = common.ShellCommand(snShellCloud)

@@ -6,3 +6,4 @@ mysql_s:
     debug: false
 
 rpc_addr: :8081
+http_addr: :8082

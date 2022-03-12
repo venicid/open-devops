@@ -16,6 +16,7 @@ import (
 	"open-devops/src/models"
 	"open-devops/src/modules/server/config"
 	"open-devops/src/modules/server/rpc"
+	"open-devops/src/modules/server/web"
 	"os"
 	"os/signal"
 	"path/filepath"
@@ -101,7 +102,7 @@ func main() {
 	/*
 	测试函数
 	*/
-	//models.StreePathAddTest(logger)
+	models.StreePathAddTest(logger)
 	//models.StreePathQueryTest1(logger)
 	//models.StreePathQueryTest2(logger)
 	//models.StreePathQueryTest3(logger)
@@ -109,7 +110,7 @@ func main() {
 	//models.StreePathForeceDeleteTest(logger)
 
 	// 测试server资源
-	models.AddResourceHostTest()
+	//models.AddResourceHostTest()
 
 
 	/**
@@ -150,10 +151,10 @@ func main() {
 					ticker := time.NewTicker(5*time.Second)
 					select {
 					case <- ctxAll.Done():
-						level.Warn(logger).Log("msg", "我是模块01退出，接收到了cancelAll")
+						//level.Warn(logger).Log("msg", "我是模块01退出，接收到了cancelAll")
 						return nil
 					case <- ticker.C:
-						level.Warn(logger).Log("msg", "我是模块01")
+						//level.Warn(logger).Log("msg", "我是模块01")
 
 					}
 				}
@@ -184,6 +185,30 @@ func main() {
 				// 若注释掉，点击stop，进程不响应Done, 未退出
 				case <- ctxAll.Done():
 					level.Info(logger).Log("msg", "receive_quit_signal_rpc_server_exit")
+					return nil
+				}
+			},
+			func(err error) {
+				cancelAll()
+			})
+	}
+
+	{
+		// http
+		g.Add(
+			func() error {
+				errChan := make(chan error, 1)
+				go func() {
+					errChan <- web.StartGin(sConfig.HttpAddr, logger)
+				}()
+				select {
+				case err := <- errChan:
+					level.Error(logger).Log("msg", "http server error", "err", err)
+					return err
+
+				// 若注释掉，点击stop，进程不响应Done, 未退出
+				case <- ctxAll.Done():
+					level.Info(logger).Log("msg", "receive_quit_signal_web_server_exit")
 					return nil
 				}
 			},

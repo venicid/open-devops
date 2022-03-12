@@ -214,6 +214,58 @@ func StreePathQuery(req *common.NodeCommonReq, logger log.Logger) (res []string)
 		}
 		sort.Strings(res)
 		return
+	case 4:
+		//直接查询g.p.a是否存在
+		gpas := strings.Split(req.Node, ".")
+		g,p,a := gpas[0],gpas[1],gpas[2]
+		// 根据g, 查询所有p列表 node=g query_type=1
+		nodeG := &StreePath{
+			Level:    1,
+			Path:     "0",
+			NodeName: g,
+		}
+		dbG, err := nodeG.GetOne()
+		if err != nil {
+			level.Error(logger).Log("msg", "check.g.failed", "path", req.Node, "err", err)
+			return
+		}
+		if dbG == nil{
+			return
+		}
+
+		// 查询p
+		pathP := fmt.Sprintf("/%d", dbG.Id)
+		nodeP := &StreePath{
+			Level:   2,
+			Path:     pathP,
+			NodeName: p,
+		}
+		dbP, err := nodeP.GetOne()
+		if err != nil {
+			level.Error(logger).Log("msg", "query_p_failed", "path", req.Node, "err", err)
+			return
+		}
+		if dbP == nil{
+			return
+		}
+
+		// 查询a
+		pathA := fmt.Sprintf("%s/%d", pathP, dbP.Id)
+		nodeA := &StreePath{
+			Level:    3,
+			Path:     pathA,
+			NodeName: a,
+		}
+		dpA, err := nodeA.GetOne()
+		if err != nil{
+			level.Error(logger).Log("msg", "query_a_failed", "path", req.Node, "err", err)
+			return
+		}
+		if dpA == nil{
+			return
+		}
+		res = append(res, req.Node)
+		return
 	}
 	return
 }
@@ -223,12 +275,12 @@ Node操作
 */
 
 
-func StreePathAddOne(req *common.NodeCommonReq, logger log.Logger) {
+func StreePathAddOne(req *common.NodeCommonReq, logger log.Logger)  error{
 	// 要求新增是三段式 g.p.a
 	res := strings.Split(req.Node, ".")
 	if len(res) != 3 {
 		level.Info(logger).Log("msg", "add.path.invalidate", "path", req.Node)
-		return
+		return fmt.Errorf("path_invalidate:%v", req.Node)
 	}
 	// g p a
 	g, p, a := res[0], res[1], res[2]
@@ -242,7 +294,7 @@ func StreePathAddOne(req *common.NodeCommonReq, logger log.Logger) {
 	dbG, err := nodeG.GetOne()
 	if err != nil {
 		level.Error(logger).Log("msg", "check.g.failed", "path", req.Node, "err", err)
-		return
+		return err
 	}
 	// 根据g的查询结果在判断
 	switch dbG {
@@ -254,7 +306,7 @@ func StreePathAddOne(req *common.NodeCommonReq, logger log.Logger) {
 		_, err := nodeG.AddOne()
 		if err != nil {
 			level.Error(logger).Log("msg", "g_not_exist_add_g_failed", "path", req.Node, "err", err)
-			return
+			return err
 		}
 		level.Info(logger).Log("msg", "g_not_exist_add_g_success", "path", req.Node, "err", err)
 
@@ -268,7 +320,7 @@ func StreePathAddOne(req *common.NodeCommonReq, logger log.Logger) {
 		_, err = nodeP.AddOne()
 		if err != nil {
 			level.Error(logger).Log("msg", "g_not_exist_add_p_failed", "path", req.Node, "err", err)
-			return
+			return err
 		}
 		level.Info(logger).Log("msg", "g_not_exist_add_p_success", "path", req.Node, "err", err)
 
@@ -282,7 +334,7 @@ func StreePathAddOne(req *common.NodeCommonReq, logger log.Logger) {
 		_, err = nodeA.AddOne()
 		if err != nil {
 			level.Error(logger).Log("msg", "g_not_exist_add_a_failed", "path", req.Node, "err", err)
-			return
+			return err
 		}
 		level.Info(logger).Log("msg", "g_not_exist_add_a_success", "path", req.Node, "err", err)
 
@@ -299,7 +351,7 @@ func StreePathAddOne(req *common.NodeCommonReq, logger log.Logger) {
 		dbP, err := nodeP.GetOne()
 		if err != nil {
 			level.Error(logger).Log("msg", "g_exist_check_p_failed", "path", req.Node, "err", err)
-			return
+			return err
 		}
 		level.Info(logger).Log("msg", "g_exist_check_p_success", "path", req.Node, "err", err)
 
@@ -314,7 +366,7 @@ func StreePathAddOne(req *common.NodeCommonReq, logger log.Logger) {
 			dbA, err := nodeA.GetOne()
 			if err != nil {
 				level.Error(logger).Log("msg", "g_p_exist_check_a_failed", "path", req.Node, "err", err)
-				return
+				return err
 			}
 			level.Info(logger).Log("msg", "g_p_exist_check_a_success", "path", req.Node)
 
@@ -323,13 +375,13 @@ func StreePathAddOne(req *common.NodeCommonReq, logger log.Logger) {
 				_, err := nodeA.AddOne()
 				if err != nil {
 					level.Error(logger).Log("msg", "g_p_exist_add_a_failed", "path", req.Node, "err", err)
-					return
+					return err
 				}
 				level.Info(logger).Log("msg", "g_p_exist_add_a_success", "path", req.Node, "err", err)
-				return
+				return err
 			}
 			level.Info(logger).Log("msg", "g_p_a_exist", "path", req.Node)
-			return
+			return err
 		}
 
 		// 1.2 - p不存在，插入p和a
@@ -337,7 +389,7 @@ func StreePathAddOne(req *common.NodeCommonReq, logger log.Logger) {
 		_,err = nodeP.AddOne()
 		if err != nil{
 			level.Error(logger).Log("msg", "g_exist_add_p_failed", "path", req.Node, "err", err)
-			return
+			return err
 		}
 		level.Info(logger).Log("msg", "g_exist_add_p_success", "path", req.Node)
 
@@ -351,11 +403,12 @@ func StreePathAddOne(req *common.NodeCommonReq, logger log.Logger) {
 		_, err = nodeA.AddOne()
 		if err != nil{
 			level.Error(logger).Log("msg", "g_exist_add_a_failed", "path", req.Node, "err", err)
-			return
+			return err
 		}
 		level.Info(logger).Log("msg", "g_exist_add_a_success", "path", req.Node)
 	}
 
+	return nil
 }
 
 func StreePathDelete(req *common.NodeCommonReq, logger log.Logger) (delNum int64){

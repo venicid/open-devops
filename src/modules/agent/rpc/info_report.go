@@ -16,6 +16,7 @@ func (r *RpcCli) HostInfoReport(info models.AgentCollectInfo)  {
 
 	err = r.Cli.Call("Server.HostInfoReport", info, &msg)
 	if err != nil{
+		r.CloseCli() // 重启sever端，重新上报
 		level.Error(r.logger).Log("msg", "Server.HostInfoReport.error", "serverAddr", r.ServerAddr, "err", err)
 		return
 	}
