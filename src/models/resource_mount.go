@@ -38,3 +38,26 @@ func ResourceMount(req *common.ResourceMountReq, logger log.Logger) (int64, erro
 	rowsAffected, err := res.RowsAffected()
 	return rowsAffected, err
 }
+
+
+func ResourceUnMount(req *common.ResourceMountReq, logger log.Logger) (int64, error)  {
+	gpas := strings.Split(req.TargetPath, ".")
+	g,p,a := gpas[0],gpas[1],gpas[2]
+
+	ids := ""
+	for _,id := range req.ResourceIds{
+		ids += fmt.Sprintf("%d", id)
+	}
+	ids  = strings.TrimRight(ids, ",")
+	rawSql := fmt.Sprintf(`update %s set stree_group='', stree_product='', stree_app='' where id in (%s)`,
+		req.ResourceType, ids,
+	)
+	level.Info(logger).Log("msg", "ResourceUnMount.sql.show", "rawSql", rawSql, "g.p.a", fmt.Sprintf("%s.%s.%s"), g,p ,a)
+	res, err := DB["stree"].Exec(rawSql)
+	if err != nil {
+		return 0, err
+	}
+	rowsAffected, err := res.RowsAffected()
+	return rowsAffected, err
+}
+

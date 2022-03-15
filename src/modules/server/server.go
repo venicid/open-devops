@@ -13,7 +13,9 @@ import (
 	promlogflag "github.com/prometheus/common/promlog/flag"
 	"github.com/prometheus/common/version"
 	"gopkg.in/alecthomas/kingpin.v2"
+	"math/rand"
 	"open-devops/src/models"
+	"open-devops/src/modules/server/cloudsync"
 	"open-devops/src/modules/server/config"
 	"open-devops/src/modules/server/rpc"
 	"open-devops/src/modules/server/web"
@@ -90,6 +92,8 @@ func main() {
 	// 打印mysql配置
 	fmt.Println(sConfig.MysqlS[0])
 
+	rand.Seed(time.Now().UnixNano())
+
 	// 初始化mysql
 	/*
 	 Error: unknown driver "mysql" (forgotten import?)
@@ -102,7 +106,7 @@ func main() {
 	/*
 	测试函数
 	*/
-	models.StreePathAddTest(logger)
+	//models.StreePathAddTest(logger)
 	//models.StreePathQueryTest1(logger)
 	//models.StreePathQueryTest2(logger)
 	//models.StreePathQueryTest3(logger)
@@ -215,6 +219,27 @@ func main() {
 			func(err error) {
 				cancelAll()
 			})
+	}
+
+	// 公有云同步
+	{
+		if sConfig.PCC.Enable{
+
+			cloudsync.Init(logger)
+
+			g.Add(
+				func() error {
+					err := cloudsync.CloudSyncManager(ctxAll, logger)
+					if err != nil{
+						level.Error(logger).Log("msg", "cloudsync.CloudSyncManager.error", "error", err)
+					}
+					return err
+				},
+				func(err error) {
+					cancelAll()
+				})
+		}
+
 	}
 
 	g.Run()

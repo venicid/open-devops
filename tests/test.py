@@ -44,7 +44,21 @@ def resource_mount():
     print(res.status_code)
     print(res.text)
 
+def resource_unmount():
+    data = {
+        "target_path": "waimai.ditu.es",
+        "resource_type":"resource_host",
+        "resource_ids":[1],
+
+    }
+    print(data)
+    uri = 'http://localhost:8082/api/v1/resource-unmount'
+    res = requests.delete(uri, json=data, headers=JSON_H)
+    print(curlify.to_curl(res.request))
+    print(res.status_code)
+    print(res.text)
 
 # node_path_add()
-node_path_query()
-resource_mount()
+# node_path_query()
+# resource_mount()
+resource_unmount()
