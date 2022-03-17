@@ -7,6 +7,7 @@ require (
 	github.com/gin-gonic/gin v1.7.4
 	github.com/go-kit/log v0.1.0
 	github.com/go-sql-driver/mysql v1.6.0
+	github.com/ning1875/inverted-index v1.0.0
 	github.com/oklog/run v1.0.0
 	github.com/prometheus/common v0.32.1
 	github.com/toolkits/pkg v1.2.9

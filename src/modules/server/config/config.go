@@ -7,25 +7,31 @@ import (
 
 // 定义Mysql多个库
 type Config struct {
-	MysqlS []*MySQLConf `yaml:"mysql_s"`
-	RpcAddr string `yaml:"rpc_addr"`
-	HttpAddr string `yaml:"http_addr"`
-	PCC PublicCloudSyncConf `yaml:"public_cloud_sync"`
+	MysqlS   []*MySQLConf        `yaml:"mysql_s"`
+	RpcAddr  string              `yaml:"rpc_addr"`
+	HttpAddr string              `yaml:"http_addr"`
+	PCC      PublicCloudSyncConf `yaml:"public_cloud_sync"`
+	IndexModules []*IndexModuleConf `yaml:"index_modules"`
 }
 
 type PublicCloudSyncConf struct {
 	Enable bool `yaml:"enable"`
-
 }
 
+type IndexModuleConf struct {
+	Enable       bool   `yaml:"enable"`
+	ResourceName string `yaml:"resource_name"`
+	Modulus int `yaml:"modulus"`
+	Num int `yaml:"num"`
+}
 
 // 定义mysql单一库
 type MySQLConf struct {
-	Name string `yaml:"name"`
-	Addr string `yaml:"addr"`
-	Max int `yaml:"max"`  // 连接数
-	Idle int `yaml:"idle"`
-	Debug bool `yaml:"debug"` // xorm打印sql
+	Name  string `yaml:"name"`
+	Addr  string `yaml:"addr"`
+	Max   int    `yaml:"max"` // 连接数
+	Idle  int    `yaml:"idle"`
+	Debug bool   `yaml:"debug"` // xorm打印sql
 
 }
 
@@ -34,20 +40,20 @@ func Load(s []byte) (*Config, error) {
 	cfg := &Config{}
 
 	err := yaml.Unmarshal(s, cfg)
-	if err != nil{
-		return nil,  err
+	if err != nil {
+		return nil, err
 	}
 	return cfg, nil
 }
 
 // 根据conf路径读取内容
-func LoadFile(filename string) (*Config, error)  {
+func LoadFile(filename string) (*Config, error) {
 	content, err := ioutil.ReadFile(filename)
 	if err != nil {
 		return nil, err
 	}
 	cfg, err := Load(content)
-	if err != nil{
+	if err != nil {
 		//fmt.Println("[parsing Yaml file err ...][err:%v]\n", err)
 		return nil, err
 	}

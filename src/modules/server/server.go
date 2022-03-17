@@ -17,6 +17,7 @@ import (
 	"open-devops/src/models"
 	"open-devops/src/modules/server/cloudsync"
 	"open-devops/src/modules/server/config"
+	mem_index "open-devops/src/modules/server/mem-index"
 	"open-devops/src/modules/server/rpc"
 	"open-devops/src/modules/server/web"
 	"os"
@@ -102,6 +103,9 @@ func main() {
 	models.InitMysql(sConfig.MysqlS)
 	level.Info(logger).Log("msg", "load.mysql.success", "db.num",  len(models.DB))
 
+
+	// 初始化内存倒排索引
+	mem_index.Init(logger, sConfig.IndexModules)
 
 	/*
 	测试函数
@@ -242,6 +246,21 @@ func main() {
 
 	}
 
+	// 刷新倒排索引
+	{
+		g.Add(
+			func() error {
+				err := mem_index.RevertedIndexSyncManager(ctxAll, logger)
+				if err != nil{
+					level.Error(logger).Log("msg", "mem_index.RevertedIndexSyncManager.error", "error", err)
+				}
+				return err
+			},
+			func(err error) {
+				cancelAll()
+			})
+
+	}
 	g.Run()
 
 /*

@@ -16,6 +16,7 @@ func configRoutes(r *gin.Engine)  {
 		api.GET("/node-path", NodePathQuery)
 		api.POST("/resource-mount", ResourceMount)
 		api.DELETE("/resource-unmount", ResourceUnMount)
+		api.POST("/resource-query", ResourceQuery)
 	}
 }
 

@@ -58,7 +58,27 @@ def resource_unmount():
     print(res.status_code)
     print(res.text)
 
+def resource_query():
+    data = {
+        "resource_type":"resource_host",
+        "labels":[
+        {
+            "key": "group",
+            "value": "sgt",
+            "type": 1,
+        }
+        ],
+        "target_label": "cluster"
+    }
+    print(data)
+    uri = 'http://localhost:8082/api/v1/resource-query?page_size=1&page_count=1'
+    res = requests.post(uri, json=data, headers=JSON_H)
+    print(curlify.to_curl(res.request))
+    print(res.status_code)
+    print(res.text)
+
 # node_path_add()
 # node_path_query()
 # resource_mount()
-resource_unmount()
+# resource_unmount()
+resource_query()

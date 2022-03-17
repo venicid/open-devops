@@ -132,3 +132,7 @@ func BatchDeleteResource(tableName string, idKey string, ids []string) (int64, e
 	return rowAffected, err
 }
 
+func (rh *ResourceHost) Count() int64  {
+	total, _ := DB["stree"].Where("id>0").Count(rh)
+	return total
+}

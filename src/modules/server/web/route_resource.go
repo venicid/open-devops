@@ -4,8 +4,11 @@ import (
 	"fmt"
 	"github.com/gin-gonic/gin"
 	"github.com/go-kit/log"
+	"math"
 	"open-devops/src/common"
 	"open-devops/src/models"
+	mem_index "open-devops/src/modules/server/mem-index"
+	"strconv"
 )
 
 func ResourceMount(c *gin.Context)  {
@@ -82,4 +85,60 @@ func ResourceUnMount(c *gin.Context)  {
 	common.JSONR(c, 200, fmt.Sprintf("rowAff:%d", rowsAff))
 	return
 
+}
+
+func ResourceQuery(c *gin.Context)  {
+	var inputs common.ResourceQueryReq
+
+	if err := c.BindJSON(&inputs); err != nil{
+		common.JSONR(c, 400, err)
+		return
+	}
+
+	ok := mem_index.JudgeResourceIndexExists(inputs.ResourceType)
+	if !ok {
+		common.JSONR(c, 400, fmt.Errorf("ResourceType_not_exists:%v", inputs.ResourceType))
+		return
+	}
+
+	pageSize, err := strconv.Atoi(c.DefaultQuery("page_size", "100"))
+	if err != nil{
+		common.JSONR(c, 400, fmt.Errorf("invalid_page_size"))
+		return
+	}
+
+	currentPage, err := strconv.Atoi(c.DefaultQuery("current_page", "1"))
+	if err != nil{
+		common.JSONR(c, 400, fmt.Errorf("invalid_current_page"))
+		return
+	}
+
+	offset := 0
+	limit := 0
+	limit = pageSize
+	if currentPage > 1{
+		offset = (currentPage - 1) *limit
+	}
+	matchIds := mem_index.GetMatchIdsByIndex(inputs)
+	// todo remove this
+	//matchIds = []uint64{1,2,3}
+
+	totalCount := len(matchIds)
+	pageCount := int(math.Ceil(float64(totalCount)/float64(limit)))
+
+	resp := common.QueryResponse{
+		Code: 200,
+		CurrentPage: currentPage,
+		PageSize:    pageSize,
+		PageCount:   pageCount,
+		TotalCount:  totalCount,
+	}
+	logger := c.MustGet("logger").(log.Logger)
+	res, err := models.ResourceQuery(inputs.ResourceType, matchIds, logger,limit, offset)
+	if  err != nil{
+		resp.Code = 500
+		resp.Result = err
+	}
+	resp.Result = res
+	common.JSONR(c, resp)
 }

@@ -10,3 +10,9 @@ http_addr: :8082
 
 public_cloud_sync:
   enable: true
+
+index_modules:
+  - resource_name: resource_host
+    enable: true
+    modules: 0
+    num: 0

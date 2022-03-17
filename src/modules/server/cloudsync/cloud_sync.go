@@ -44,7 +44,7 @@ func Init(logger log.Logger)  {
 func CloudSyncManager(ctx context.Context, logger log.Logger) error  {
 	level.Info(logger).Log("msg", "CloudSyncManger.start", "resource_num", len(cloudResourceContainer))
 
-	ticker := time.NewTicker(5*time.Second)
+	ticker := time.NewTicker(10*time.Second)
 	doCloudSync(logger)
 	defer ticker.Stop()
 	for {
