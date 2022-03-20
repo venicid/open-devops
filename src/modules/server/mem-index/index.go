@@ -47,7 +47,7 @@ func Init(logger  log.Logger, ims []*config.IndexModuleConf)  {
 			mi := &HostIndex{
 				Ir:      ii.NewHeadReader(),
 				Logger:  logger,
-				Modules: i.Modulus,
+				Modulus: i.Modulus,
 				Num:     i.Num,
 			}
 			iRegister(i.ResourceName, mi)
@@ -55,7 +55,7 @@ func Init(logger  log.Logger, ims []*config.IndexModuleConf)  {
 			mi := &HostIndex{
 				Ir:      ii.NewHeadReader(),
 				Logger:  logger,
-				Modules: i.Modulus,
+				Modulus: i.Modulus,
 				Num:     i.Num,
 			}
 			iRegister(i.ResourceName, mi)
