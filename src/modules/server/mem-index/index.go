@@ -67,6 +67,12 @@ func Init(logger  log.Logger, ims []*config.IndexModuleConf)  {
 		"detail", strings.Join(loadResource, ","))
 }
 
+func GetResourceIndexReader(name string) (bool, ResourceIndexer)  {
+	ri, ok := indexContainer[name]
+	return ok, ri
+}
+
+// 根据查询请求，在倒排索引中，获取匹配的ids
 func GetMatchIdsByIndex(req common.ResourceQueryReq) (matchIds []uint64)  {
 	ri, ok := indexContainer[req.ResourceType]
 	if !ok {

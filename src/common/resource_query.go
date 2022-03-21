@@ -5,7 +5,7 @@ import "github.com/ning1875/inverted-index/labels"
 type ResourceQueryReq struct {
 	ResourceType string `json:"resource_type" binding:"required"`  // 资源的类型
 	Labels []*SingleTagReq  `json:"labels" binding:"required"`  // 查询的标签组
-	TargetLabel string `json:"target_label"`  // 目标 g.p.a
+	TargetLabel string `json:"target_label"`  // 目标 g.p.a, 分组查询使用
 
 }
 

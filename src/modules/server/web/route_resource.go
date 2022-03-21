@@ -142,3 +142,42 @@ func ResourceQuery(c *gin.Context)  {
 	resp.Result = res
 	common.JSONR(c, resp)
 }
+
+// 查询分布情况
+func ResourceGroup(c *gin.Context)  {
+
+	resourceType := c.DefaultQuery("resource_group", common.RESOURCE_HOST)
+	label := c.DefaultQuery("label", "region")
+
+	ok := mem_index.JudgeResourceIndexExists(resourceType)
+	if !ok {
+		common.JSONR(c, 400, fmt.Errorf("ResourceType_not_exists:%v", resourceType))
+		return
+	}
+
+	_, ri := mem_index.GetResourceIndexReader(resourceType)
+	res := ri.GetIndexReader().GetGroupByLabel(label)
+	common.JSONR(c, res)
+}
+
+
+func GetLabelDistribution(c *gin.Context){
+
+	var inputs common.ResourceQueryReq
+
+	if err := c.BindJSON(&inputs); err != nil{
+		common.JSONR(c, 400, err)
+		return
+	}
+
+	ok, ri:= mem_index.GetResourceIndexReader(inputs.ResourceType)
+	if !ok {
+		common.JSONR(c, 400, fmt.Errorf("ResourceType_not_exists:%v", inputs.ResourceType))
+		return
+	}
+
+	matchIds := mem_index.GetMatchIdsByIndex(inputs)
+	res := ri.GetIndexReader().GetGroupDistributionByLabel(inputs.TargetLabel, matchIds)
+	common.JSONR(c, res)
+
+}

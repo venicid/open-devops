@@ -17,6 +17,8 @@ func configRoutes(r *gin.Engine)  {
 		api.POST("/resource-mount", ResourceMount)
 		api.DELETE("/resource-unmount", ResourceUnMount)
 		api.POST("/resource-query", ResourceQuery)
+		api.GET("/resource-group", ResourceGroup)
+		api.POST("/resource-distribution", GetLabelDistribution)
 	}
 }
 
