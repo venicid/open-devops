@@ -8,12 +8,14 @@ import (
 	"github.com/go-kit/log"
 	"github.com/go-kit/log/level"
 	"github.com/oklog/run"
+	"github.com/prometheus/client_golang/prometheus"
 	"github.com/prometheus/common/promlog"
 	promlogflag "github.com/prometheus/common/promlog/flag"
 	"github.com/prometheus/common/version"
 	"gopkg.in/alecthomas/kingpin.v2"
 	"open-devops/src/modules/agent/config"
 	"open-devops/src/modules/agent/info"
+	"open-devops/src/modules/agent/metric"
 	"open-devops/src/modules/agent/rpc"
 	"os"
 	"os/signal"
@@ -89,6 +91,16 @@ func main() {
 	// 初始化rpc client
 	rpcCli := rpc.InitRpcCli(sConfig.RpcServerAddr, logger)
 	//rpcCli.Ping()
+
+	/*
+	创建Log metrics
+	*/
+	metricsMap := metric.CreateMetrics(sConfig.LogStrategies)
+	// 注册metrics
+	for _, m := range metricsMap {
+		prometheus.MustRegister(m)
+
+	}
 
 	/**
 	编排开始
