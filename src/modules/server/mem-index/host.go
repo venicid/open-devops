@@ -7,8 +7,10 @@ import (
 	"github.com/go-kit/log/level"
 	ii "github.com/ning1875/inverted-index"
 	"github.com/ning1875/inverted-index/labels"
+	"github.com/prometheus/client_golang/prometheus"
 	"open-devops/src/common"
 	"open-devops/src/models"
+	"open-devops/src/modules/server/metric"
 	"strconv"
 	"strings"
 	"time"
@@ -28,6 +30,9 @@ func (hi *HostIndex) FlushIndex()  {
 	// 计数
 	r := new(models.ResourceHost)
 	total := int(r.Count())
+
+	metric.ResourceNumCount.With(prometheus.Labels{common.RESOURCE_TYPE:common.RESOURCE_HOST}).Set(float64(total))
+
 	ids := ""
 	mine := 0
 	for i := 1; i < total+1; i++ {
@@ -128,7 +133,7 @@ func (hi *HostIndex) FlushIndex()  {
 
 	hi.Ir.Reset(thisH)
 
-	level.Info(hi.Logger).Log("msg", "mem-index.FlushIndex.time.took",
+	level.Debug(hi.Logger).Log("msg", "mem-index.FlushIndex.time.took",
 		"took", time.Since(start).Seconds(),
 	)
 

@@ -6,8 +6,10 @@ import (
 	"github.com/go-kit/log/level"
 	ii "github.com/ning1875/inverted-index"
 	"github.com/ning1875/inverted-index/index"
+	"github.com/prometheus/client_golang/prometheus"
 	"open-devops/src/common"
 	"open-devops/src/modules/server/config"
+	"open-devops/src/modules/server/metric"
 	"strings"
 	"sync"
 	"time"
@@ -72,6 +74,10 @@ func GetResourceIndexReader(name string) (bool, ResourceIndexer)  {
 	return ok, ri
 }
 
+func GetAllResourceIndexReader() ( make(map[string]ResourceIndexer))  {
+	return indexContainer
+}
+
 // 根据查询请求，在倒排索引中，获取匹配的ids
 func GetMatchIdsByIndex(req common.ResourceQueryReq) (matchIds []uint64)  {
 	ri, ok := indexContainer[req.ResourceType]
@@ -119,10 +125,14 @@ func RevertedIndexSyncManager(ctx context.Context, logger log.Logger) error  {
 func doIndexFlush()  {
 	var wg sync.WaitGroup
 	wg.Add(len(indexContainer))
-	for _, ir := range indexContainer{
+	for name, ir := range indexContainer{
 		ir := ir
 		go func() {
 			defer wg.Done()
+
+			start := time.Now()
+			metric.IndexFlushDuration.With(prometheus.Labels{common.RESOURCE_TYPE:name}).Set(float64(time.Since(start).Seconds()))
+
 			ir.FlushIndex()
 		}()
 	}

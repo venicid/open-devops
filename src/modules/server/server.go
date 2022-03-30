@@ -18,7 +18,9 @@ import (
 	"open-devops/src/modules/server/cloudsync"
 	"open-devops/src/modules/server/config"
 	mem_index "open-devops/src/modules/server/mem-index"
+	"open-devops/src/modules/server/metric"
 	"open-devops/src/modules/server/rpc"
+	"open-devops/src/modules/server/statistics"
 	"open-devops/src/modules/server/web"
 	"os"
 	"os/signal"
@@ -120,6 +122,8 @@ func main() {
 	// 测试server资源
 	//models.AddResourceHostTest()
 
+	// 注册metric
+	metric.NewMetrics()
 
 	/**
 	编排开始
@@ -253,6 +257,24 @@ func main() {
 				err := mem_index.RevertedIndexSyncManager(ctxAll, logger)
 				if err != nil{
 					level.Error(logger).Log("msg", "mem_index.RevertedIndexSyncManager.error", "error", err)
+				}
+				return err
+			},
+			func(err error) {
+				cancelAll()
+			})
+
+	}
+
+
+
+	// 统计资源分布
+	{
+		g.Add(
+			func() error {
+				err := statistics.TreeNodeStatisticsManager(ctxAll, logger)
+				if err != nil{
+					level.Error(logger).Log("msg", "statistics.TreeNodeStatisticsManager.error", "error", err)
 				}
 				return err
 			},

@@ -215,13 +215,25 @@ def resource_distribution():
     for i in data:
         print(i)
 
+
+def node_path_query2():
+    data = {"node": "a1", "query_type": 5}
+    print(data)
+    uri = 'http://localhost:8082/api/v1/node-path'
+    res = requests.get(uri, json=data, headers=JSON_H)
+    print(curlify.to_curl(res.request))
+    print(res.status_code)
+    print(res.text)
+
+
 # node_path_add()
 # node_path_query()
 # resource_mount()
 # resource_unmount()
-resource_query()
+# resource_query()
 # resource_group()
-resource_distribution()
+# resource_distribution()
+node_path_query2()
 
 """
 测试倒排索引resource_query，对比结果
@@ -260,5 +272,5 @@ sql
 select id,tags from resource_host where stree_app="kafaka";
 
 等价于
-select cluster,count(cluster) from xxx where stree_app="kafaka" group by cluster;
+select cluster,count(cluster) from xxx where stree_app="kafaka" and stree_product="test" group by cluster;
 """

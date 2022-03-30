@@ -266,6 +266,44 @@ func StreePathQuery(req *common.NodeCommonReq, logger log.Logger) (res []string)
 		}
 		res = append(res, req.Node)
 		return
+	case 5:
+		// 获取全量g.p.a，给统一用
+		whereStr := "id>0"
+		ps, err := StreePathGetMany(whereStr)
+		if err !=nil{
+			return
+		}
+		existMapGS := make(map[int64]StreePath)
+		existMapPS := make(map[int64]StreePath)
+		existMapAS := make(map[int64]StreePath)
+
+		for _, p := range ps {
+			switch p.Level {
+			case 1:
+				existMapGS[p.Id] = p
+			case 2:
+				existMapPS[p.Id] = p
+			case 3:
+				existMapAS[p.Id] = p
+			}
+		}
+
+		for gid, g := range existMapGS {
+			for pid, p := range existMapPS {
+				pPath := fmt.Sprintf("/%d", gid)
+				if pPath == p.Path{
+					for _,a := range existMapAS{
+						aPath := fmt.Sprintf("%s/%d", p.Path, pid)
+						if aPath == a.Path{
+							res = append(res, fmt.Sprintf("%s.%s.%s", g.NodeName, p.NodeName, a.NodeName))
+
+						}
+					}
+				}
+			}
+		}
+		sort.Strings(res)
+		return
 	}
 	return
 }
@@ -339,7 +377,7 @@ func StreePathAddOne(req *common.NodeCommonReq, logger log.Logger)  error{
 		level.Info(logger).Log("msg", "g_not_exist_add_a_success", "path", req.Node, "err", err)
 
 	default:
-		level.Info(logger).Log("msg", "g_exist", "path", req.Node)
+		level.Debug(logger).Log("msg", "g_exist", "path", req.Node)
 
 		// 1 - 说明g存在，再查p
 		pathP := fmt.Sprintf("/%d", dbG.Id)
@@ -353,7 +391,7 @@ func StreePathAddOne(req *common.NodeCommonReq, logger log.Logger)  error{
 			level.Error(logger).Log("msg", "g_exist_check_p_failed", "path", req.Node, "err", err)
 			return err
 		}
-		level.Info(logger).Log("msg", "g_exist_check_p_success", "path", req.Node, "err", err)
+		//level.Info(logger).Log("msg", "g_exist_check_p_success", "path", req.Node, "err", err)
 
 		// 1.1 - 说明p存在，继续查a
 		if dbP != nil {
@@ -368,7 +406,7 @@ func StreePathAddOne(req *common.NodeCommonReq, logger log.Logger)  error{
 				level.Error(logger).Log("msg", "g_p_exist_check_a_failed", "path", req.Node, "err", err)
 				return err
 			}
-			level.Info(logger).Log("msg", "g_p_exist_check_a_success", "path", req.Node)
+			level.Debug(logger).Log("msg", "g_p_exist_check_a_success", "path", req.Node)
 
 			// 1.1.1 - 说明a，不存在，插入a
 			if dbA == nil {
@@ -380,7 +418,7 @@ func StreePathAddOne(req *common.NodeCommonReq, logger log.Logger)  error{
 				level.Info(logger).Log("msg", "g_p_exist_add_a_success", "path", req.Node, "err", err)
 				return err
 			}
-			level.Info(logger).Log("msg", "g_p_a_exist", "path", req.Node)
+			level.Debug(logger).Log("msg", "g_p_a_exist", "path", req.Node)
 			return err
 		}
 
