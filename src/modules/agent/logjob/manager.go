@@ -2,6 +2,7 @@ package logjob
 
 import (
 	"context"
+	"fmt"
 	"github.com/toolkits/pkg/logger"
 
 	"sync"
@@ -42,6 +43,8 @@ func (jm *LogJobManager) SyncManager(ctx context.Context, syncChan chan []*LogJo
 }
 
 func (jm *LogJobManager) Sync(jobs []*LogJob) {
+	fmt.Println("LogJobManager.sync", jobs)
+
 	logger.Infof("[LogJobManager.sync][num:%d][res:%+v]", len(jobs), jobs)
 	thisNewTargets := make(map[string]*LogJob)
 	thisAllTargets := make(map[string]*LogJob)
@@ -68,6 +71,7 @@ func (jm *LogJobManager) Sync(jobs []*LogJob) {
 
 	jm.targetMtx.Unlock()
 	// 开启新的
+	logger.Infof("LogJobManager.SYnc.start")
 	for _, t := range thisNewTargets {
 		t := t
 		t.start()

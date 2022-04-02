@@ -91,7 +91,7 @@ func (r *Reader) StartRead()  {
 	close(analysClose)  // 退出goroutine
 }
 
-func (r *Reader) stop()  {
+func (r *Reader) Stop()  {
 	r.stopRead()
 	close(r.Close)
 }

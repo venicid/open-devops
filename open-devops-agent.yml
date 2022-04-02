@@ -3,10 +3,10 @@ rpc_server_addr: 0.0.0.0:8081
 http_addr: 0.0.0.0:8087
 log_level: INFO
 
-log_strategy:
+log_strategies:
   - metric_name: log_containerd_total
     metric_help: /var/log/messages 中的 containerd日志 total
-    file_path: /var/log/messages
+    file_path: /var/log/system.log
     pattern:  ".*containerd.*"
     func: cnt
     tags:

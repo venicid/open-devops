@@ -13,7 +13,7 @@ type Config struct {
 
 
 	// log的配置
-	LogStrategies []*LogStrategy `yaml:"LogStrategies"`
+	LogStrategies []*LogStrategy `yaml:"log_strategies"`
 	HttpAddr string `json:"http_addr"`
 }
 
@@ -75,6 +75,8 @@ func setLogRegs(cfg *Config) []*LogStrategy {
 	res := []*LogStrategy{}
 	for _, st := range cfg.LogStrategies {
 		st := st
+		st.TagRegs = make(map[string]*regexp.Regexp)
+
 		// 处理主正则
 		if len(st.Pattern) != 0{
 			reg, err := regexp.Compile(st.Pattern)

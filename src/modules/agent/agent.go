@@ -15,6 +15,7 @@ import (
 	"gopkg.in/alecthomas/kingpin.v2"
 	"open-devops/src/modules/agent/config"
 	"open-devops/src/modules/agent/info"
+	"open-devops/src/modules/agent/logjob"
 	"open-devops/src/modules/agent/metric"
 	"open-devops/src/modules/agent/rpc"
 	"os"
@@ -102,6 +103,21 @@ func main() {
 
 	}
 
+	// new logManager
+	logJobManager := logjob.NewLogJobManager()
+	logJobSyncChan := make(chan []*logjob.LogJob, 1)
+	jobs := make([]*logjob.LogJob, 0)
+	fmt.Println("abc",sConfig.LogStrategies)
+	for _, i := range sConfig.LogStrategies {
+		i = i
+
+		j := &logjob.LogJob{Stra: i}
+		jobs = append(jobs, j)
+	}
+	logJobSyncChan<- jobs
+
+
+
 	/**
 	编排开始
 	*/
@@ -149,6 +165,24 @@ func main() {
 			},
 		)
 	}
+
+
+	{
+		g.Add(
+			func() error {
+				err := logJobManager.SyncManager(ctxAll, logJobSyncChan)
+				if err != nil{
+					level.Error(logger).Log("msg", "logJobManager.SyncManager.error", "err", err)
+					return err
+				}
+				return err
+			},
+			func(err error) {
+				cancelAll()
+			},
+		)
+	}
+
 
 	g.Run()
 

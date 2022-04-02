@@ -25,5 +25,7 @@ const (
 	LogFuncMax       = "max"
 	LogFuncMin       = "min"
 	LogFuncAvg       = "avg"
+
+	LogQuerySize = 500
 )
 

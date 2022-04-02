@@ -33,6 +33,10 @@ func TickerInfoCollectAndReport(cli *rpc.RpcCli ,ctx context.Context, logger log
 
 
 func CollectBaseInfo(cli *rpc.RpcCli , logger log.Logger)  {
+
+	// TODO
+	return
+
 	var (
 		sn string
 		cpu string
