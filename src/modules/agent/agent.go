@@ -13,11 +13,14 @@ import (
 	promlogflag "github.com/prometheus/common/promlog/flag"
 	"github.com/prometheus/common/version"
 	"gopkg.in/alecthomas/kingpin.v2"
+	"open-devops/src/common"
 	"open-devops/src/modules/agent/config"
+	"open-devops/src/modules/agent/consumer"
 	"open-devops/src/modules/agent/info"
 	"open-devops/src/modules/agent/logjob"
-	"open-devops/src/modules/agent/metric"
+	"open-devops/src/modules/agent/metrics"
 	"open-devops/src/modules/agent/rpc"
+	"open-devops/src/modules/counter"
 	"os"
 	"os/signal"
 	"path/filepath"
@@ -94,28 +97,32 @@ func main() {
 	//rpcCli.Ping()
 
 	/*
-	创建Log metrics
+		 创建Log metrics
 	*/
-	metricsMap := metric.CreateMetrics(sConfig.LogStrategies)
+	metricsMap := metrics.CreateMetrics(sConfig.LogStrategies)
 	// 注册metrics
 	for _, m := range metricsMap {
 		prometheus.MustRegister(m)
-
 	}
 
 	// new logManager
-	logJobManager := logjob.NewLogJobManager()
+	// 统计指标的同步queue
+	cq := make(chan *consumer.AnalysPoint, common.CounterQueueSize)
+	// 统计指标的管理器
+	pm := counter.NewPointCounterManager(cq, metricsMap)
+	// 日志job管理器
+	logJobManager := logjob.NewLogJobManager(cq)
+	// 把配置文件中的logjob传入
 	logJobSyncChan := make(chan []*logjob.LogJob, 1)
 	jobs := make([]*logjob.LogJob, 0)
-	fmt.Println("abc",sConfig.LogStrategies)
+
+	fmt.Println("[sConfig.LogStrategies]:",sConfig.LogStrategies)
 	for _, i := range sConfig.LogStrategies {
 		i = i
-
 		j := &logjob.LogJob{Stra: i}
 		jobs = append(jobs, j)
 	}
 	logJobSyncChan<- jobs
-
 
 
 	/**
@@ -124,11 +131,11 @@ func main() {
 	var g run.Group
 	ctxAll, cancelAll := context.WithCancel(context.Background())
 	fmt.Println(ctxAll)
+
+	// 处理信号退出的handler
 	{
-		// 处理信号退出的handler
 		term := make(chan os.Signal, 1)
 		signal.Notify(term, os.Interrupt, syscall.SIGTERM)   // 处理ctrl+c , kill -15
-
 		cancelC := make(chan struct{})
 		g.Add(
 			func() error {
@@ -150,38 +157,103 @@ func main() {
 		)
 	}
 
+	// 采集基础信息的
 	{
-		g.Add(
-			func() error {
+		if sConfig.EnableInfoCollectAndReport {
+			g.Add(func() error {
 				err := info.TickerInfoCollectAndReport(rpcCli, ctxAll, logger)
-				if err != nil{
+				if err != nil {
 					level.Error(logger).Log("msg", "TickerInfoCollectAndReport.error", "err", err)
 					return err
 				}
 				return err
-		},
-			func(err error) {
+
+			}, func(err error) {
 				cancelAll()
 			},
-		)
+			)
+		}
 	}
 
+	fmt.Println(sConfig.EnableInfoCollectAndReport)
+	fmt.Println(sConfig.RpcServerAddr)
+	fmt.Println(sConfig.HttpAddr)
+	if sConfig.EnableLogJob{
+		// logJobManager 增量同步策略，任务的函数
 
-	{
-		g.Add(
-			func() error {
-				err := logJobManager.SyncManager(ctxAll, logJobSyncChan)
-				if err != nil{
-					level.Error(logger).Log("msg", "logJobManager.SyncManager.error", "err", err)
+		{
+			g.Add(
+				func() error {
+					err := logJobManager.SyncManager(ctxAll, logJobSyncChan)
+					if err != nil{
+						level.Error(logger).Log("msg", "logJobManager.SyncManager.error", "err", err)
+						return err
+					}
 					return err
+				},
+				func(err error) {
+					cancelAll()
+				},
+			)
+		}
+
+		// 统计计数的实体的管理器，接收ap 处理
+		{
+			g.Add(
+				func() error {
+					err := pm.UpdateManager(ctxAll)
+					if err != nil{
+						level.Error(logger).Log("msg", "pm.UpdateManager.error", "err", err)
+						return err
+					}
+					return err
+				},
+				func(err error) {
+					cancelAll()
+				},
+			)
+		}
+
+		// 统计任务实体转换为prometheus的metrics的任务
+		{
+			g.Add(
+				func() error {
+					err := pm.SetMetricsManager(ctxAll)
+					if err != nil{
+						level.Error(logger).Log("msg", "pm.SetMetricsManager.error", "err", err)
+						return err
+					}
+					return err
+				},
+				func(err error) {
+					cancelAll()
+				},
+			)
+		}
+
+		// logjob 结果的metrics http server
+		{
+			g.Add(func() error {
+				errChan := make(chan error, 1)
+				go func() {
+					errChan <- metrics.StartMetricWeb(sConfig.HttpAddr)
+				}()
+				select {
+				case err := <-errChan:
+					level.Error(logger).Log("msg", "logjob.metrics.web.server.error", "err", err)
+					return err
+				case <-ctxAll.Done():
+					level.Info(logger).Log("msg", "receive_quit_signal_web_server_exit")
+					return nil
 				}
-				return err
-			},
-			func(err error) {
+
+			}, func(err error) {
 				cancelAll()
 			},
-		)
+			)
+		}
 	}
+
 
 
 	g.Run()
@@ -213,6 +285,14 @@ level=warn ts=2022-03-06T10:19:41.802+08:00 caller=agent.go:108 msg="Receive SIG
 
 
 /*
+启动logjob
+
+访问 http://localhost:8087/metrics
+
+*/
+
+
+/*
 
 linux下使用
 
@@ -223,3 +303,5 @@ go build -o agent src/modules/agent.go
 # 执行
 ./agent
 */
+
+

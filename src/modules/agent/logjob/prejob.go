@@ -26,7 +26,7 @@ func (lj *LogJob) hash() string  {
 	return hex.EncodeToString(md5obj.Sum(nil))
 }
 
-func (lj *LogJob) start()  {
+func (lj *LogJob) start(cq chan *consumer.AnalysPoint)  {
 
 	logger.Infof("create.LogJob.start")
 
@@ -39,7 +39,7 @@ func (lj *LogJob) start()  {
 	}
 	lj.r = r
 	// new consumer
-	cg := consumer.NewConsumerGroup(fPath, stream, lj.Stra)
+	cg := consumer.NewConsumerGroup(fPath, stream, lj.Stra, cq)
 	lj.c = cg
 	// 启动r ,c
 	// 先消费者

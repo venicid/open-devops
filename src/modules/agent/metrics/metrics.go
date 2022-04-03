@@ -1,7 +1,10 @@
-package metric
+package metrics
 
 import (
 	"github.com/prometheus/client_golang/prometheus"
+	"github.com/prometheus/client_golang/prometheus/promhttp"
+	"github.com/toolkits/pkg/logger"
+	"net/http"
 	"open-devops/src/modules/agent/config"
 )
 
@@ -21,5 +24,14 @@ func CreateMetrics(ss []*config.LogStrategy) map[string]*prometheus.GaugeVec {
 
 	}
 	return mmmap
+}
 
+func StartMetricWeb(addr string) error  {
+	logger.Infof("LogJobManager.StartMetricWeb.start: ", addr)
+	http.Handle("/metrics", promhttp.Handler())
+	srv := http.Server{
+		Addr:              addr,
+	}
+	err := srv.ListenAndServe()
+	return err
 }

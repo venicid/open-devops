@@ -11,13 +11,14 @@ import (
 type Config struct {
 	RpcServerAddr string `yaml:"rpc_server_addr"`
 
-
 	// log的配置
 	LogStrategies []*LogStrategy `yaml:"log_strategies"`
-	HttpAddr string `json:"http_addr"`
+	HttpAddr string `yaml:"http_addr"`
+
+	// 开关
+	EnableInfoCollectAndReport bool `yaml:"enable_info_collect_and_report"`
+	EnableLogJob bool `yaml:"enable_log_job"`
 }
-
-
 
 
 

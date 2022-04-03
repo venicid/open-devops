@@ -17,9 +17,7 @@ const (
 	LABEL_MEM            = "mem"
 	LABEL_DISK           = "disk"
 
-	LogQueueSize     = 10000
-	ConsumerNum      = 5
-	CounterQueueSize = 10000
+
 	LogFuncCnt       = "cnt"
 	LogFuncSum       = "sum"
 	LogFuncMax       = "max"
@@ -27,5 +25,8 @@ const (
 	LogFuncAvg       = "avg"
 
 	LogQuerySize = 500
+	ConsumerNum      = 5
+	CounterQueueSize = 10000
+
 )
 

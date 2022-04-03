@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"github.com/toolkits/pkg/logger"
+	"open-devops/src/modules/agent/consumer"
 
 	"sync"
 )
@@ -11,11 +12,13 @@ import (
 type LogJobManager struct {
 	targetMtx sync.Mutex
 	activeTargets map[string]*LogJob
+	cq  chan *consumer.AnalysPoint
 }
 
-func NewLogJobManager() *LogJobManager  {
+func NewLogJobManager(cq  chan *consumer.AnalysPoint) *LogJobManager  {
 	return &LogJobManager{
 		activeTargets: make(map[string]*LogJob),
+		cq :cq,
 	}
 }
 
@@ -29,6 +32,7 @@ func (jm *LogJobManager) StopALl() {
 }
 
 func (jm *LogJobManager) SyncManager(ctx context.Context, syncChan chan []*LogJob) error {
+	logger.Infof("LogJobManager.SyncManager.start")
 	for {
 		select {
 		case <-ctx.Done():
@@ -74,7 +78,7 @@ func (jm *LogJobManager) Sync(jobs []*LogJob) {
 	logger.Infof("LogJobManager.SYnc.start")
 	for _, t := range thisNewTargets {
 		t := t
-		t.start()
+		t.start(jm.cq)
 		//t.start(jm.cq)
 	}
 

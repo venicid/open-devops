@@ -1,7 +1,10 @@
 rpc_server_addr: 0.0.0.0:8081
-
 http_addr: 0.0.0.0:8087
+
 log_level: INFO
+
+enable_info_collect_and_report: false # 采集信息上报的开关
+enable_log_job: true # 开启logjob的
 
 log_strategies:
   - metric_name: log_containerd_total
@@ -13,6 +16,6 @@ log_strategies:
       level: ".*level=(.*?) .*"
   - metric_name: ngx_acc_code
     metric_help: nginx code avg
-    file_path: /var/log/nginx/access.log
+    file_path: /var/log/wifi.log
     pattern:  '.*\[code=(.*?)\].*'
     func: avg

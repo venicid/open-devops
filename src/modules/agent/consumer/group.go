@@ -3,6 +3,7 @@ package consumer
 import (
 	"fmt"
 	"github.com/toolkits/pkg/logger"
+	"open-devops/src/common"
 	"open-devops/src/modules/agent/config"
 )
 
@@ -13,8 +14,8 @@ type ConsumerGroup struct {
 }
 
 // TODO 缺少analyPoint
-func NewConsumerGroup(filePath string, stream chan string, stra *config.LogStrategy) *ConsumerGroup {
-	cNum := 10
+func NewConsumerGroup(filePath string, stream chan string, stra *config.LogStrategy, cq chan *AnalysPoint) *ConsumerGroup {
+	cNum := common.ConsumerNum
 	cg := &ConsumerGroup{
 		Consumers:   make([]*Consumer, 0),
 		ConsumerNum: cNum,
@@ -27,6 +28,7 @@ func NewConsumerGroup(filePath string, stream chan string, stra *config.LogStrat
 			Stream:    stream,
 			Stra:      stra,
 			Mark:      mark,
+			CounterQueue: cq,
 			Close:     make(chan struct{}),
 		}
 		cg.Consumers = append(cg.Consumers, c)
